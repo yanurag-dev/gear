@@ -3,3 +3,5 @@ fastapi
 uvicorn
 typer
 pyyaml
+google-generativeai
+python-dotenv

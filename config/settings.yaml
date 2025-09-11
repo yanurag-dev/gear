@@ -1,6 +1,5 @@
 llm:
-  provider: mock
-  api_key: your_llm_api_key
+  provider: gemini
 mcp_servers:
   playwright:
     url: http://localhost:8000
