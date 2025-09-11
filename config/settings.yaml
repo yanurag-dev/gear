@@ -1,0 +1,10 @@
+llm:
+  provider: mock
+  api_key: your_llm_api_key
+mcp_servers:
+  playwright:
+    url: http://localhost:8000
+  filesystem:
+    url: http://localhost:8001
+  notion:
+    url: http://localhost:8002
