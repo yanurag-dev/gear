@@ -29,7 +29,7 @@ def _ensure_initialized():
                 _logger.warning("Gemini configured but GEMINI_API_KEY is missing. Falling back to mock responses.")
                 _llm_provider_type = None  # Fall back to mock behavior
             else:
-                initialize_gemini(_llm_api_key) # Initialize Gemini with the API key
+                initialize_gemini(_llm_api_key, _llm_model) # Initialize Gemini with the API key and model
         # Add other LLM providers here if needed
 
         _initialized = True

@@ -11,10 +11,8 @@ def _substitute_env_vars(obj):
         return {key: _substitute_env_vars(value) for key, value in obj.items()}
     elif isinstance(obj, list):
         return [_substitute_env_vars(item) for item in obj]
-    elif isinstance(obj, str) and obj.startswith('${') and obj.endswith('}'):
-        # Extract environment variable name from ${ENV_VAR} format
-        env_var = obj[2:-1]
-        return os.getenv(env_var, obj)  # Return original if env var not found
+    elif isinstance(obj, str):
+        return os.path.expandvars(obj)
     else:
         return obj
 

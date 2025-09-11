@@ -1,14 +1,18 @@
 import google.generativeai as genai
 from typing import Optional
 import logging
+from google.generativeai.types import APIError # Canonical APIError
+from google.api_core import exceptions as api_core_exceptions # For gRPC errors
 
 _gemini_model = None
 _logger = logging.getLogger(__name__)
 
-def initialize_gemini(api_key: str):
+def initialize_gemini(api_key: str, model_name: Optional[str] = None):
     global _gemini_model
     genai.configure(api_key=api_key)
-    _gemini_model = genai.GenerativeModel('gemini-2.5-flash')
+    # Use a default model if model_name is not provided or is empty
+    actual_model_name = model_name if model_name else 'gemini-2.5-flash'
+    _gemini_model = genai.GenerativeModel(actual_model_name)
 
 def get_gemini_response(prompt: str) -> Optional[str]:
     if _gemini_model is None:
@@ -20,8 +24,20 @@ def get_gemini_response(prompt: str) -> Optional[str]:
             _logger.error(f"Gemini API returned an invalid response for prompt: '{prompt}' and model: '{_gemini_model.model_name}'. Response: {response}")
             return None
         return response.text
-    except genai.APIError as e:
-        _logger.exception(f"Error interacting with Gemini API for prompt: '{prompt}' and model: '{_gemini_model.model_name}'. Error: {e}")
+    except APIError as e: # Canonical APIError
+        _logger.exception(f"Gemini API error for prompt: '{prompt}' and model: '{_gemini_model.model_name}'. Error: {e}")
+        return None
+    except (
+        api_core_exceptions.InvalidArgument,
+        api_core_exceptions.NotFound,
+        api_core_exceptions.PermissionDenied,
+        api_core_exceptions.DeadlineExceeded,
+        api_core_exceptions.ServiceUnavailable,
+        api_core_exceptions.ResourceExhausted, # TooManyRequests
+        api_core_exceptions.InternalServerError, # Internal/Unknown
+        api_core_exceptions.Unknown
+    ) as e:
+        _logger.exception(f"Google API Core exception for prompt: '{prompt}' and model: '{_gemini_model.model_name}'. Error: {e}")
         return None
     except Exception as e: # Catch other unexpected exceptions
         _logger.exception(f"An unexpected error occurred for prompt: '{prompt}' and model: '{_gemini_model.model_name}'. Error: {e}")
