@@ -17,7 +17,7 @@ Gear's architecture is composed of several interconnected services:
     *   **Persistence:** (Future) Stores plans, operations, and artifacts.
     *   **Observability:** (Future) Structured logs, traces, metrics.
 
-2.  **MCP Servers (Micro-Controller Processes):**
+2.  **MCP Servers (Model Context Protocol):**
     Standalone services responsible for specific actions. They are designed to be extensible.
     *   **Playwright MCP:** Automates browser actions (scraping, navigation, form filling).
     *   **Filesystem MCP:** Handles file read/write, artifact storage, versioning.
