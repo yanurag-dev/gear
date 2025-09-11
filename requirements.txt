@@ -3,6 +3,3 @@ fastapi
 uvicorn
 typer
 pyyaml
-pre-commit
-black
-isort
