@@ -1,7 +1,12 @@
 import google.generativeai as genai
 from typing import Optional
 import logging
-from google.generativeai.types import APIError # Canonical APIError
+from google.generativeai.types import (
+    BlockedPromptException,
+    BrokenResponseError,
+    IncompleteIterationError,
+    StopCandidateException
+)
 from google.api_core import exceptions as api_core_exceptions # For gRPC errors
 
 _gemini_model = None
@@ -24,7 +29,12 @@ def get_gemini_response(prompt: str) -> Optional[str]:
             _logger.error(f"Gemini API returned an invalid response for prompt: '{prompt}' and model: '{_gemini_model.model_name}'. Response: {response}")
             return None
         return response.text
-    except APIError as e: # Canonical APIError
+    except (
+        BlockedPromptException,
+        BrokenResponseError,
+        IncompleteIterationError,
+        StopCandidateException
+    ) as e: # Gemini-specific exceptions
         _logger.exception(f"Gemini API error for prompt: '{prompt}' and model: '{_gemini_model.model_name}'. Error: {e}")
         return None
     except (
