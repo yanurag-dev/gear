@@ -1,5 +1,6 @@
 llm:
   provider: gemini
+  api_key: ${GEMINI_API_KEY}
 mcp_servers:
   playwright:
     url: http://localhost:8000

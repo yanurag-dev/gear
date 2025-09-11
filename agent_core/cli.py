@@ -2,6 +2,8 @@ import typer
 from agent_core.planner import Planner
 from agent_core.executor import Executor
 from agent_core.models import Plan
+import json
+import dataclasses
 
 app = typer.Typer()
 
@@ -18,7 +20,18 @@ def run(goal: str = typer.Option(..., help="The high-level goal for the agent to
 
         if isinstance(response, Plan):
             typer.echo("\nGenerated Plan:")
-            typer.echo(response.json(indent=2))
+            try:
+                if hasattr(response, 'model_dump'): # Pydantic v2
+                    typer.echo(json.dumps(response.model_dump(), indent=2))
+                elif hasattr(response, 'json'): # Pydantic v1
+                    typer.echo(response.json(indent=2))
+                elif dataclasses.is_dataclass(response): # Dataclass
+                    typer.echo(json.dumps(dataclasses.asdict(response), indent=2))
+                else: # Fallback for other types
+                    typer.echo(json.dumps(response, default=lambda o: getattr(o, "__dict__", str(o)), indent=2))
+            except Exception as e:
+                typer.echo(f"Error serializing Plan: {e}", err=True)
+                typer.echo(str(response)) # Print raw response if serialization fails
 
             typer.echo("\nExecuting Plan...")
             executor.execute_plan(response)
