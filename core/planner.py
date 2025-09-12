@@ -1,6 +1,6 @@
-from agent_core.models import Plan
+from core.models import Plan
 from pydantic import ValidationError
-from llm_provider.adapter import generate_response
+from llm.adapter import generate_response
 import json
 
 class Planner:

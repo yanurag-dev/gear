@@ -1,7 +1,7 @@
 import typer
-from agent_core.planner import Planner
-from agent_core.executor import Executor
-from agent_core.models import Plan
+from core.planner import Planner
+from core.executor import Executor
+from core.models import Plan
 import json
 import dataclasses
 

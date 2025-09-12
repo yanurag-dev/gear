@@ -17,4 +17,4 @@ async def create_item(item: Item):
     return item
 
 # To run this application, navigate to the project root in your terminal and execute:
-# uvicorn mcp_servers.playwright_mcp.main:app --reload
+# uvicorn mcp.playwright_mcp.main:app --reload
