@@ -1,6 +1,6 @@
-from core.models import Plan
+from src.core.models import Plan
 from pydantic import ValidationError
-from llm.adapter import generate_response
+from src.llm.adapter import generate_response
 import json
 
 class Planner:
