@@ -1,0 +1,31 @@
+[project]
+name = "gear"
+version = "0.1.0"
+description = "An AI task-runner agent."
+authors = [{ name = "Anurag", email = "anurag@example.com" }]
+dependencies = [
+    "typer>=0.9.0",
+    "python-dotenv>=1.0.0",
+    "PyYAML>=6.0.1",
+    "pydantic>=2.0.0",
+    "anthropic>=0.20.0",
+    "google-generativeai>=0.3.0",
+    "openai>=1.0.0",
+]
+
+[project.scripts]
+gear = "src.core.cli:app"
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "ruff",
+    "mypy",
+]
+
+[tool.setuptools]
+packages = ["src.config", "src.core", "src.llm", "src.mcp"]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"

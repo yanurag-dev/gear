@@ -10,21 +10,21 @@
 
 Gear's architecture is composed of several interconnected services:
 
-1.  **Agent Core (Python Service):**
+1.  **Core (Python Service):**
     *   **Planner:** Uses an LLM to generate structured JSON plans from high-level goals.
     *   **Executor:** Executes plan steps by calling external MCP servers.
     *   **Verifier:** (Future) Validates results of each step before continuing.
     *   **Persistence:** (Future) Stores plans, operations, and artifacts.
     *   **Observability:** (Future) Structured logs, traces, metrics.
 
-2.  **MCP Servers (Model Context Protocol):**
+2.  **MCP (Model Context Protocol):**
     Standalone services responsible for specific actions. They are designed to be extensible.
     *   **Playwright MCP:** Automates browser actions (scraping, navigation, form filling).
     *   **Filesystem MCP:** Handles file read/write, artifact storage, versioning.
     *   **Notion MCP:** CRUD operations on Notion pages/databases.
     *(Extensible: Easily add more MCPs like Email, Slack, Jira, etc.)*
 
-3.  **LLM Provider:**
+3.  **LLM:**
     An adapter layer for various Large Language Models (e.g., OpenAI, Anthropic). Used by the Planner to generate plans.
 
 4.  **CLI (Command Line Interface):**
@@ -53,21 +53,33 @@ Gear's architecture is composed of several interconnected services:
     git clone https://github.com/your-username/gear.git # Replace with your actual repo URL
     cd gear
     ```
-2.  **Install dependencies:**
+2.  **Create and Activate a Virtual Environment:**
+    It's highly recommended to use a virtual environment to manage project dependencies.
     ```bash
-    python3 -m pip install -r requirements.txt
+    python3 -m venv venv
+    # On macOS/Linux:
+    source venv/bin/activate
+    # On Windows (PowerShell):
+    # .\venv\Scripts\Activate.ps1
+    # On Windows (Command Prompt):
+    # venv\Scripts\activate.bat
+    ```
+3.  **Install the Project in Editable Mode:**
+    This installs the project and its dependencies, and makes the `gear` command available.
+    ```bash
+    pip install -e .
     ```
 
 ### Configuration
 
-Adjust the settings in `config/settings.yaml` to configure LLM providers, MCP server URLs, and other parameters. A sample configuration is provided:
+Adjust the settings in `src/config/settings.yaml` to configure LLM providers, MCP server URLs, and other parameters. A sample configuration is provided:
 
 ```yaml
-# config/settings.yaml
+# src/config/settings.yaml
 llm:
   provider: mock # or openai, anthropic, etc.
   api_key: your_llm_api_key # Replace with your actual API key
-mcp_servers:
+mcp:
   playwright:
     url: http://localhost:8000
   filesystem:
@@ -80,22 +92,26 @@ mcp_servers:
 
 Interact with the Gear agent using the command-line interface.
 
-To run the agent with a specific goal:
+To start the interactive chat CLI:
 
 ```bash
-python -m agent_core.cli run "your high-level goal here"
+gear
 ```
+
+Once the CLI is running, you can type your high-level goals. Type 'exit' or 'quit' to end the session.
 
 ### Examples:
 
-*   **Open Google:**
+*   **Start the CLI:**
     ```bash
-    python -m agent_core.cli run "open google"
+    gear
     ```
+    Then, at the prompt, you can type:
+    `Enter your goal (or 'exit'/'quit' to end): open google`
+
 *   **Search on Google:**
-    ```bash
-    python -m agent_core.cli run "search for latest AI news"
-    ```
+    At the prompt, you can type:
+    `Enter your goal (or 'exit'/'quit' to end): search for latest AI news`
 
 ## Development
 
@@ -105,13 +121,13 @@ To run the Playwright MCP (which the Executor will call):
 
 ```bash
 cd gear # Ensure you are in the project root
-uvicorn mcp_servers.playwright_mcp.main:app --reload
+uvicorn src.mcp.playwright_mcp.main:app --reload
 ```
 
 ### Extending Gear
 
-*   **Adding New MCPs:** Create a new directory under `mcp_servers/`, implement its API (e.g., using FastAPI), and update `config/settings.yaml`.
-*   **Integrating New LLMs:** Implement a new adapter in `llm_provider/` that conforms to the expected interface.
+*   **Adding New MCPs:** Create a new directory under `mcp/`, implement its API (e.g., using FastAPI), and update `src/config/settings.yaml`.
+*   **Integrating New LLMs:** Implement a new adapter in `llm/` that conforms to the expected interface.
 
 ## Contributing
 
