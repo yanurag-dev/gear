@@ -47,6 +47,9 @@ def chat():
             elif isinstance(response, str):
                 typer.echo("\nDirect LLM Response:")
                 typer.echo(response)
+            elif response is None:
+                typer.echo("No response received from planner — please try again later; session remains active", err=True)
+                return
             else:
                 typer.echo("\nUnexpected response type from Planner.", err=True)
                 raise typer.Exit(code=1)

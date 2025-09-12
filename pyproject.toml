@@ -2,7 +2,8 @@
 name = "gear"
 version = "0.1.0"
 description = "An AI task-runner agent."
-authors = [{ name = "Anurag", email = "anurag@example.com" }]
+authors = [{ name = "Anurag", email = "yadavanurag1310@gmail.com" }]
+requires-python = ">=3.9"
 dependencies = [
     "typer>=0.9.0",
     "python-dotenv>=1.0.0",
@@ -25,6 +26,9 @@ dev = [
 
 [tool.setuptools]
 packages = ["src.config", "src.core", "src.llm", "src.mcp"]
+
+[tool.setuptools.package-data]
+"config" = ["settings.yaml"]
 
 [build-system]
 requires = ["setuptools>=61.0"]
