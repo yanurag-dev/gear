@@ -1,7 +1,7 @@
-from agent_core.models import Plan, Action
+from core.models import Plan, Action
 from typing import Optional, Union
 from config.loader import load_config
-from llm_provider.gemini import initialize_gemini, get_gemini_response
+from llm.gemini import initialize_gemini, get_gemini_response
 import logging
 
 _logger = logging.getLogger(__name__)

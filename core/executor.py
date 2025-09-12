@@ -1,4 +1,4 @@
-from agent_core.models import Plan, Action
+from core.models import Plan, Action
 
 class Executor:
     def execute_plan(self, plan: Plan):
