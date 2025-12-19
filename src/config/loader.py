@@ -16,7 +16,12 @@ def _substitute_env_vars(obj):
     else:
         return obj
 
-def load_config(config_path: str = 'config/settings.yaml'):
+def load_config(config_path: str = None):
+    if config_path is None:
+        # Resolve path relative to this loader.py file
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        config_path = os.path.join(base_dir, 'settings.yaml')
+    
     load_dotenv() # Load environment variables from .env file
 
     try:

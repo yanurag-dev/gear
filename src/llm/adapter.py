@@ -24,7 +24,7 @@ def _ensure_initialized():
         _llm_api_key = config.get('llm', {}).get('api_key')
         _llm_model = config.get('llm', {}).get('model') # Get model name from config
 
-        if _llm_provider_type == 'gemini':
+        if _llm_provider_type == 'google':
             if not _llm_api_key:
                 _logger.warning("Gemini configured but GEMINI_API_KEY is missing. Falling back to mock responses.")
                 _llm_provider_type = None  # Fall back to mock behavior
@@ -37,13 +37,45 @@ def _ensure_initialized():
         _logger.exception(f"Failed to initialize LLM provider: {e}")
         raise # Re-raise the exception after logging
 
+SYSTEM_PROMPT = """You are an AI task-runner agent called 'Gear'. 
+Your goal is to help users automate tasks by generating structured execution plans or providing direct answers.
+
+### AVAILABLE TOOLS (MCPs)
+1. **playwright**: For browser automation.
+   - action: 'navigate' (args: {url: str})
+   - action: 'click' (args: {selector: str})
+   - action: 'type' (args: {selector: str, text: str})
+   - action: 'scrape' (args: {url: str})
+2. **filesystem**: For binary and text file operations.
+   - action: 'read_file' (args: {path: str})
+   - action: 'write_file' (args: {path: str, content: str})
+3. **notion**: For Notion workspace interactions.
+   - action: 'create_page' (args: {parent_id: str, properties: dict})
+
+### OUTPUT FORMAT
+If the task requires multiple steps or external tools, respond with a JSON object following this structure:
+{
+    "goal": "the original user goal",
+    "steps": [
+        {
+            "mcp": "mcp_name",
+            "action": "action_name",
+            "args": {"arg_name": "value"}
+        }
+    ]
+}
+
+If the task can be answered directly without tools (e.g., 'what is the capital of France?'), respond with a plain text answer.
+Always prefer direct text answers for simple knowledge questions.
+"""
+
 def generate_response(goal: str) -> Union[Plan, str, None]:
     _ensure_initialized() # Ensure initialization before proceeding
 
-    if _llm_provider_type == 'gemini':
-        # For Gemini, we'll send the raw goal and expect a text response.
-        # The Planner will then interpret this text response.
-        return get_gemini_response(goal)
+    if _llm_provider_type == 'google':
+        # For Gemini, we'll send the raw goal and expect a text response or JSON plan.
+        # We provide a system prompt to guide it to output JSON for tool calls.
+        return get_gemini_response(goal, system_instruction=SYSTEM_PROMPT)
     else: # Default to mock behavior
         if "open google" in goal.lower():
             return Plan(
