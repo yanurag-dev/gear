@@ -46,11 +46,11 @@ class Executor:
         
         except Exception as e:
             print(f"Error executing plan: {e}", file=sys.stderr)
-        finally:
-             if self.playwright_service:
-                 # In a real daemon we might keep it open, but for a single plan execution, maybe close it?
-                 # If we close it, the user won't 'see' the final state if it closes instantly.
-                 # But leaving it dangling is bad.
-                 # Let's keep it open if the script ends? No, the script will exit.
-                 # Let's close it.
-                 self.playwright_service.stop()
+        # We no longer stop the playwright service in finally.
+        # This keeps the browser open so the user can see results,
+        # and subsequent goals can reuse the same session.
+
+    def cleanup(self):
+        if self.playwright_service:
+            self.playwright_service.stop()
+            self.playwright_service = None

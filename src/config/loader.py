@@ -22,7 +22,17 @@ def load_config(config_path: str = None):
         base_dir = os.path.dirname(os.path.abspath(__file__))
         config_path = os.path.join(base_dir, 'settings.yaml')
     
-    load_dotenv() # Load environment variables from .env file
+    # Try to find .env in current directory or project root
+    env_path = os.path.join(os.getcwd(), '.env')
+    if not os.path.exists(env_path):
+        # Fallback to project root if called from elsewhere
+        project_root = os.path.dirname(os.path.dirname(base_dir))
+        env_path = os.path.join(project_root, '.env')
+    
+    if os.path.exists(env_path):
+        load_dotenv(env_path)
+    else:
+        _logger.warning(f".env file not found at {env_path}. Ensure environment variables are set.")
 
     try:
         with open(config_path, 'r') as f:

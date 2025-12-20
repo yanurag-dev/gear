@@ -10,13 +10,14 @@ dependencies = [
     "PyYAML>=6.0.1",
     "pydantic>=2.0.0",
     "anthropic>=0.20.0",
-    "google-generativeai>=0.3.0",
+    "google-genai>=0.3.0",
     "openai>=1.0.0",
     "playwright>=1.40.0",
 ]
 
 [project.scripts]
 gear = "src.core.cli:app"
+gear-setup = "src.core.cli:setup"
 
 [project.optional-dependencies]
 dev = [
@@ -26,7 +27,15 @@ dev = [
 ]
 
 [tool.setuptools]
-packages = ["src.config", "src.core", "src.llm", "src.mcp"]
+packages = [
+    "src.config",
+    "src.core",
+    "src.llm",
+    "src.mcp",
+    "src.mcp.playwright_mcp",
+    "src.mcp.filesystem_mcp",
+    "src.mcp.notion_mcp"
+]
 
 [tool.setuptools.package-data]
 "config" = ["settings.yaml"]

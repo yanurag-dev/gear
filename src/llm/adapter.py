@@ -26,7 +26,7 @@ def _ensure_initialized():
 
         if _llm_provider_type == 'google':
             if not _llm_api_key:
-                _logger.warning("Gemini configured but GEMINI_API_KEY is missing. Falling back to mock responses.")
+                _logger.warning("Gemini configured but LLM_API_KEY (or api_key in config) is missing. Falling back to mock responses.")
                 _llm_provider_type = None  # Fall back to mock behavior
             else:
                 initialize_gemini(_llm_api_key, _llm_model) # Initialize Gemini with the API key and model
@@ -70,7 +70,6 @@ Always prefer direct text answers for simple knowledge questions.
 """
 
 def generate_response(goal: str) -> Union[Plan, str, None]:
-    _ensure_initialized() # Ensure initialization before proceeding
 
     if _llm_provider_type == 'google':
         # For Gemini, we'll send the raw goal and expect a text response or JSON plan.

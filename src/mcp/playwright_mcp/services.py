@@ -18,14 +18,31 @@ class PlaywrightService:
             print("Browser started.")
 
     def stop(self):
-        if self.page:
-            self.page.close()
-        if self.context:
-            self.context.close()
-        if self.browser:
-            self.browser.close()
-        if self.playwright:
-            self.playwright.stop()
+        try:
+            if self.page:
+                self.page.close()
+        except Exception:
+            pass
+        try:
+            if self.context:
+                self.context.close()
+        except Exception:
+            pass
+        try:
+            if self.browser:
+                self.browser.close()
+        except Exception:
+            pass
+        try:
+            if self.playwright:
+                self.playwright.stop()
+        except Exception:
+            pass
+        
+        self.page = None
+        self.context = None
+        self.browser = None
+        self.playwright = None
         print("Browser stopped.")
 
     def navigate(self, url: str):
