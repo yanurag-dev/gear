@@ -49,7 +49,7 @@ def get_gemini_response(prompt: str, system_instruction: Optional[str] = None, r
         _logger.exception(f"An unexpected error occurred for prompt: '{prompt}' and model: '{model_name}'. Error: {e}")
         return None
 
-def get_gemini_multimodal_response(prompt: str, image_path: str, system_instruction: Optional[str] = None) -> Optional[str]:
+def get_gemini_multimodal_response(prompt: str, file_path: str, system_instruction: Optional[str] = None) -> Optional[str]:
     with _client_lock:
         client = _client
         model_name = _model_name
@@ -62,10 +62,15 @@ def get_gemini_multimodal_response(prompt: str, image_path: str, system_instruct
         import pathlib
         import mimetypes
 
-        image_data = pathlib.Path(image_path).read_bytes()
-        mime_type, _ = mimetypes.guess_type(image_path)
-        if not mime_type or not mime_type.startswith('image/'):
-            _logger.error(f"Invalid or unsupported image type for: {image_path}")
+        file_data = pathlib.Path(file_path).read_bytes()
+        mime_type, _ = mimetypes.guess_type(file_path)
+        
+        # Supported types for Gemini Flash/Pro: images, pdf, some video/audio
+        supported_mimes = ['image/', 'application/pdf', 'video/', 'audio/']
+        is_supported = any(mime_type.startswith(sm) for sm in supported_mimes if mime_type) if mime_type else False
+
+        if not is_supported:
+            _logger.error(f"Invalid or unsupported file type for: {file_path} (MIME: {mime_type})")
             return None
         
         config = None
@@ -79,12 +84,12 @@ def get_gemini_multimodal_response(prompt: str, image_path: str, system_instruct
             model=model_name,
             contents=[
                 prompt,
-                types.Part.from_bytes(data=image_data, mime_type=mime_type)
+                types.Part.from_bytes(data=file_data, mime_type=mime_type)
             ],
             config=config
         )
         if response is None or not hasattr(response, 'text'):
-            _logger.error(f"Gemini API returned an invalid multimodal response. Model: '{model_name}', Image present: {image_data is not None}. Response: {response}")
+            _logger.error(f"Gemini API returned an invalid multimodal response. Model: '{model_name}', File path: {file_path}. Response: {response}")
             return None
         return response.text
     except Exception as e:

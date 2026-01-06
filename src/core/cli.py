@@ -41,7 +41,7 @@ def chat():
     except Exception as e:
         typer.secho(f"Initialization failed: {e}", fg=typer.colors.RED, err=True)
         typer.echo(traceback.format_exc(), err=True)
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from e
 
     typer.echo("Gear is ready!")
     typer.echo("Starting interactive chat. Type 'exit' or 'quit' to end.")
@@ -102,6 +102,131 @@ def chat():
                     # Don't exit, just continue
             except ValueError as e:
                 typer.echo(f"Error: {e}", err=True)
+    finally:
+        executor.cleanup()
+
+@app.command()
+def analyze(
+    url: str = typer.Argument(..., help="The URL of the form to analyze"),
+    wait_seconds: int = typer.Option(0, help="Wait for dynamic content to load (seconds)")
+):
+    """Analyze a web form and show its schema."""
+    from src.llm.adapter import _ensure_initialized
+    try:
+        _ensure_initialized()
+    except Exception as e:
+        typer.secho(f"Initialization failed: {e}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1) from e
+
+    from src.core.executor import Executor
+    typer.echo(f"Analyzing form at: {url}")
+    executor = Executor()
+    try:
+        pw = executor.get_playwright_service()
+        pw.navigate(url)
+        # Wait for network activity to settle
+        pw.page.wait_for_load_state("networkidle")
+        if wait_seconds > 0:
+            import time
+            time.sleep(wait_seconds)
+        fields = pw.get_form_fields()
+        
+        # Simplify fields for display
+        schema = {}
+        for field in fields:
+            if field['type'] in ['submit', 'button'] and not field.get('isNavigationButton'):
+                continue
+            
+            key = field.get('label') or field.get('name') or field.get('placeholder') or f"field_{field['index']}"
+            schema[key] = {
+                "type": field['type'],
+                "required": field['required'],
+                "selector": field['selector']
+            }
+            if field.get('options'):
+                schema[key]["options"] = [opt.get('text') or opt.get('label') for opt in field['options']]
+        
+        typer.echo("\nExtracted Form Schema:")
+        typer.echo(json.dumps(schema, indent=2))
+    finally:
+        executor.cleanup()
+
+@app.command()
+def resolve(
+    url: str = typer.Argument(..., help="The URL of the form to resolve"),
+    knowledge_base_dir: str = typer.Option("./user_data", help="Directory containing user documents"),
+    wait_seconds: int = typer.Option(0, help="Wait for dynamic content to load (seconds)")
+):
+    """Resolve form fields using local documents."""
+    from src.llm.adapter import _ensure_initialized
+    try:
+        _ensure_initialized()
+    except Exception as e:
+        typer.secho(f"Initialization failed: {e}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1) from e
+
+    from src.services.document_loader import DocumentLoader
+    from src.core.context_resolver import ContextResolver
+    from src.core.executor import Executor
+    
+    typer.echo(f"Resolving context for: {url}")
+    
+    # 1. Load Documents
+    typer.echo(f"Loading documents from: {knowledge_base_dir}")
+    # Ensure directory exists
+    import os
+    if not os.path.exists(knowledge_base_dir):
+        os.makedirs(knowledge_base_dir, exist_ok=True)
+        typer.secho(f"Created directory: {knowledge_base_dir}. Please add documents there.", fg=typer.colors.YELLOW)
+        return
+
+    loader = DocumentLoader(knowledge_base_dir)
+    knowledge_context = loader.load_all_documents()
+    
+    if not knowledge_context:
+        typer.secho("No documents found in knowledge base. Add some files (PDF, TXT, MD) and try again.", fg=typer.colors.RED)
+        return
+
+    # 2. Extract Schema from Page
+    typer.echo("Fetching form fields from page...")
+    executor = Executor()
+    try:
+        pw = executor.get_playwright_service()
+        pw.navigate(url)
+        # Wait for network activity to settle
+        pw.page.wait_for_load_state("networkidle")
+        if wait_seconds > 0:
+            import time
+            time.sleep(wait_seconds)
+        fields = pw.get_form_fields()
+        
+        # Create a Target Schema for Gemini
+        target_schema = {}
+        for field in fields:
+            if field['type'] in ['submit', 'button']: continue
+            key = field.get('label') or field.get('name') or field.get('placeholder') or f"field_{field['index']}"
+            target_schema[key] = f"type: {field['type']}, required: {field['required']}"
+            if field.get('options'):
+                opts = [opt.get('text') or opt.get('label') for opt in field['options']]
+                target_schema[key] += f", options: {opts}"
+
+        # 3. Resolve
+        typer.echo("Mapping documents to form fields...")
+        resolver = ContextResolver()
+        resolved_data = resolver.resolve(target_schema, knowledge_context)
+        
+        typer.echo("\n--- RESOLUTION RESULTS ---")
+        for key, value in resolved_data.items():
+            status = "✅" if value else "❌"
+            color = typer.colors.GREEN if value else typer.colors.RED
+            typer.secho(f"{status} {key}: {value}", fg=color)
+        
+        gaps = resolver.identify_gaps(resolved_data)
+        if gaps:
+            typer.secho(f"\nGaps identified: {len(gaps)} missing fields.", fg=typer.colors.YELLOW)
+        else:
+            typer.secho("\nAll fields successfully resolved!", fg=typer.colors.GREEN, bold=True)
+            
     finally:
         executor.cleanup()
 
