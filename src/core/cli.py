@@ -41,7 +41,7 @@ def chat():
     except Exception as e:
         typer.secho(f"Initialization failed: {e}", fg=typer.colors.RED, err=True)
         typer.echo(traceback.format_exc(), err=True)
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from e
 
     typer.echo("Gear is ready!")
     typer.echo("Starting interactive chat. Type 'exit' or 'quit' to end.")
@@ -106,14 +106,17 @@ def chat():
         executor.cleanup()
 
 @app.command()
-def analyze(url: str = typer.Argument(..., help="The URL of the form to analyze")):
+def analyze(
+    url: str = typer.Argument(..., help="The URL of the form to analyze"),
+    wait_seconds: int = typer.Option(0, help="Wait for dynamic content to load (seconds)")
+):
     """Analyze a web form and show its schema."""
     from src.llm.adapter import _ensure_initialized
     try:
         _ensure_initialized()
     except Exception as e:
         typer.secho(f"Initialization failed: {e}", fg=typer.colors.RED, err=True)
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from e
 
     from src.core.executor import Executor
     typer.echo(f"Analyzing form at: {url}")
@@ -121,6 +124,11 @@ def analyze(url: str = typer.Argument(..., help="The URL of the form to analyze"
     try:
         pw = executor.get_playwright_service()
         pw.navigate(url)
+        # Wait for network activity to settle
+        pw.page.wait_for_load_state("networkidle")
+        if wait_seconds > 0:
+            import time
+            time.sleep(wait_seconds)
         fields = pw.get_form_fields()
         
         # Simplify fields for display
@@ -146,7 +154,8 @@ def analyze(url: str = typer.Argument(..., help="The URL of the form to analyze"
 @app.command()
 def resolve(
     url: str = typer.Argument(..., help="The URL of the form to resolve"),
-    knowledge_base_dir: str = typer.Option("./user_data", help="Directory containing user documents")
+    knowledge_base_dir: str = typer.Option("./user_data", help="Directory containing user documents"),
+    wait_seconds: int = typer.Option(0, help="Wait for dynamic content to load (seconds)")
 ):
     """Resolve form fields using local documents."""
     from src.llm.adapter import _ensure_initialized
@@ -154,7 +163,7 @@ def resolve(
         _ensure_initialized()
     except Exception as e:
         typer.secho(f"Initialization failed: {e}", fg=typer.colors.RED, err=True)
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=1) from e
 
     from src.services.document_loader import DocumentLoader
     from src.core.context_resolver import ContextResolver
@@ -184,9 +193,11 @@ def resolve(
     try:
         pw = executor.get_playwright_service()
         pw.navigate(url)
-        # Give a little extra time for dynamic fields
-        import time
-        time.sleep(2)
+        # Wait for network activity to settle
+        pw.page.wait_for_load_state("networkidle")
+        if wait_seconds > 0:
+            import time
+            time.sleep(wait_seconds)
         fields = pw.get_form_fields()
         
         # Create a Target Schema for Gemini
