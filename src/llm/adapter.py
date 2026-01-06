@@ -81,13 +81,19 @@ If the task can be answered directly without tools (e.g., 'what is the capital o
 Always prefer direct text answers for simple knowledge questions.
 """
 
-def generate_response(goal: str) -> Union[Plan, str, None]:
+def generate_response(goal: str, context: Optional[dict] = None) -> Union[Plan, str, None]:
+    _ensure_initialized()
+    
+    # Enrich the goal with current browser context if available
+    enriched_goal = goal
+    url = context.get("url") if context else None
+    if isinstance(url, str) and url.strip():
+        enriched_goal = f"Current Browser URL: {url}\nUser Goal: {goal}"
 
     if _llm_provider_type == 'google':
         # For Gemini, we'll send the raw goal and expect a text response or JSON plan.
-        # We provide a system prompt to guide it to output JSON for tool calls.
         response = get_gemini_response(
-            goal, 
+            enriched_goal, 
             system_instruction=SYSTEM_PROMPT,
             response_mime_type="application/json"
         )
@@ -112,9 +118,9 @@ def generate_response(goal: str) -> Union[Plan, str, None]:
         
         return response
     else: # Default to mock behavior
-        if "open google" in goal.lower():
+        if "open google" in enriched_goal.lower():
             return Plan(
-                goal=goal,
+                goal=enriched_goal,
                 steps=[
                     Action(
                         mcp="playwright",
@@ -125,10 +131,10 @@ def generate_response(goal: str) -> Union[Plan, str, None]:
                     )
                 ]
             )
-        elif "search for" in goal.lower():
-            query = goal.lower().split("search for", 1)[1].strip()
+        elif "search for" in enriched_goal.lower():
+            query = enriched_goal.lower().split("search for", 1)[1].strip()
             return Plan(
-                goal=goal,
+                goal=enriched_goal,
                 steps=[
                     Action(
                         mcp="playwright",
@@ -139,9 +145,9 @@ def generate_response(goal: str) -> Union[Plan, str, None]:
                     )
                 ]
             )
-        elif "what is" in goal.lower() or "calculate" in goal.lower():
+        elif "what is" in enriched_goal.lower() or "calculate" in enriched_goal.lower():
             # Simulate a direct answer for knowledge-based queries
-            if "2 + 2" in goal.lower():
+            if "2 + 2" in enriched_goal.lower():
                 return "4"
             else:
                 return "I don't know the answer to that directly yet."

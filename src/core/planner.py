@@ -4,9 +4,9 @@ from src.llm.adapter import generate_response
 import json
 
 class Planner:
-    def generate_plan(self, goal: str) -> Plan | str:
-        # This calls the adapter, which might use Gemini or mock logic
-        llm_output = generate_response(goal)
+    def generate_plan(self, goal: str, context: dict = None) -> Plan | str:
+        # Pass the context (like current URL) to the adapter
+        llm_output = generate_response(goal, context=context)
 
         if isinstance(llm_output, Plan):
             return llm_output
