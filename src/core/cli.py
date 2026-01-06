@@ -71,7 +71,17 @@ def chat():
                         typer.echo(str(response)) # Print raw response if serialization fails
 
                     typer.echo("\nExecuting Plan...")
-                    executor.execute_plan(response)
+                    results = executor.execute_plan(response)
+                    
+                    # Display results (like form fields) to the user
+                    for i, result in enumerate(results):
+                        if result:
+                            typer.echo(f"\nResult from Step {i+1}:")
+                            if isinstance(result, (list, dict)):
+                                typer.echo(json.dumps(result, indent=2))
+                            else:
+                                typer.echo(str(result))
+                    
                     typer.echo("\nPlan execution complete.")
                 elif isinstance(response, str):
                     typer.echo("\nDirect LLM Response:")

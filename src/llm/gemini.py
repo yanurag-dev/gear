@@ -42,3 +42,33 @@ def get_gemini_response(prompt: str, system_instruction: Optional[str] = None) -
     except Exception as e: # Catch other unexpected exceptions
         _logger.exception(f"An unexpected error occurred for prompt: '{prompt}' and model: '{_model_name}'. Error: {e}")
         return None
+
+def get_gemini_multimodal_response(prompt: str, image_path: str, system_instruction: Optional[str] = None) -> Optional[str]:
+    if _client is None:
+        _logger.error("Gemini client not initialized.")
+        return None
+    try:
+        from google.genai import types
+        import pathlib
+
+        image_data = pathlib.Path(image_path).read_bytes()
+        
+        config = None
+        if system_instruction:
+            config = types.GenerateContentConfig(
+                system_instruction=system_instruction,
+                response_mime_type="application/json"
+            )
+
+        response = _client.models.generate_content(
+            model=_model_name,
+            contents=[
+                prompt,
+                types.Part.from_bytes(data=image_data, mime_type="image/jpeg") # Defaulting to jpeg, can be generalized
+            ],
+            config=config
+        )
+        return response.text
+    except Exception as e:
+        _logger.exception(f"Multimodal error: {e}")
+        return None
