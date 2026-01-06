@@ -1,5 +1,6 @@
 from playwright.sync_api import sync_playwright, Page, Browser, BrowserContext
 from typing import Optional, Dict, Any
+from urllib.parse import urlparse
 
 class PlaywrightService:
     def __init__(self):
@@ -50,8 +51,21 @@ class PlaywrightService:
             self.start()
         
         # Ensure the URL has a protocol
-        if not (url.startswith("http://") or url.startswith("https://")):
-            url = f"https://{url}"
+        parsed = urlparse(url)
+        if not parsed.scheme:
+            # Re-parse with // prefix to correctly identify hostname
+            temp_parsed = urlparse('//' + url)
+            host = temp_parsed.hostname or ""
+            
+            is_local = (
+                host == 'localhost' or 
+                host == '127.0.0.1' or 
+                host.endswith('.local') or 
+                (host and all(c.isdigit() or c == '.' for c in host))
+            )
+            
+            scheme = "http" if is_local else "https"
+            url = f"{scheme}://{url}"
             
         print(f"Navigating to {url}...")
         self.page.goto(url)
@@ -68,7 +82,7 @@ class PlaywrightService:
         print(f"Clicking '{selector}'...")
         self.page.click(selector)
 
-    def scrape(self, url: str = None) -> str:
+    def scrape(self, url: Optional[str] = None) -> str:
         if url and self.page and self.page.url != url:
              self.navigate(url)
         

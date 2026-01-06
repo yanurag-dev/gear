@@ -3,6 +3,7 @@ from typing import Optional, Union
 from src.config.loader import load_config
 from src.llm.gemini import initialize_gemini, get_gemini_response
 import logging
+import json
 
 _logger = logging.getLogger(__name__)
 
@@ -26,9 +27,10 @@ def _ensure_initialized():
 
         if _llm_provider_type == 'google':
             if not _llm_api_key:
-                _logger.warning("Gemini configured but LLM_API_KEY (or api_key in config) is missing. Falling back to mock responses.")
+                _logger.warning("Google GenAI (Gemini) configured but LLM_API_KEY (or api_key in config) is missing. Falling back to mock responses.")
                 _llm_provider_type = None  # Fall back to mock behavior
             else:
+                # The 'google' provider uses Gemini under the hood
                 initialize_gemini(_llm_api_key, _llm_model) # Initialize Gemini with the API key and model
         # Add other LLM providers here if needed
 
@@ -84,7 +86,31 @@ def generate_response(goal: str) -> Union[Plan, str, None]:
     if _llm_provider_type == 'google':
         # For Gemini, we'll send the raw goal and expect a text response or JSON plan.
         # We provide a system prompt to guide it to output JSON for tool calls.
-        return get_gemini_response(goal, system_instruction=SYSTEM_PROMPT)
+        response = get_gemini_response(
+            goal, 
+            system_instruction=SYSTEM_PROMPT,
+            response_mime_type="application/json"
+        )
+        
+        if not response:
+            return None
+            
+        # Try to parse response as a JSON Plan
+        if isinstance(response, str):
+            try:
+                # Clean up potential markdown formatting
+                cleaned_response = response.strip()
+                if cleaned_response.startswith("```json"):
+                    cleaned_response = cleaned_response.split("```json")[1].split("```")[0].strip()
+                elif cleaned_response.startswith("```"):
+                    cleaned_response = cleaned_response.split("```")[1].split("```")[0].strip()
+                
+                # Try to load as Plan
+                return Plan.model_validate_json(cleaned_response)
+            except Exception:
+                _logger.debug("Failed to parse response as Plan, returning as raw string.")
+        
+        return response
     else: # Default to mock behavior
         if "open google" in goal.lower():
             return Plan(

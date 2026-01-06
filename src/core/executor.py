@@ -1,6 +1,9 @@
 from src.core.models import Plan, Action
 from src.mcp.playwright_mcp.services import PlaywrightService
 import sys
+import logging
+
+logger = logging.getLogger(__name__)
 
 class Executor:
     def __init__(self):
@@ -34,6 +37,9 @@ class Executor:
                     elif step.action == "get_form_fields":
                         result = service.get_form_fields()
                         print(f"    (Found {len(result)} form fields)")
+                    elif step.action == "screenshot":
+                        result = service.screenshot(**step.args)
+                        print(f"    (Screenshot saved to {step.args.get('path')})")
                     else:
                         print(f"    (Unknown Playwright action: {step.action})")
 
@@ -45,7 +51,11 @@ class Executor:
                             image_path=step.args.get("path"),
                             system_instruction="Return structured JSON only."
                         )
-                        print(f"    (OCR complete: {len(result) if result else 0} bytes)")
+                        if result is not None:
+                            print(f"    (OCR complete: {len(result)} bytes)")
+                        else:
+                            print(f"    (OCR failed: No response received from AI service)")
+                            result = ""
 
                 elif step.mcp == "filesystem":
                     print(f"    (Simulating Filesystem action: {step.action} {step.args})")
@@ -58,11 +68,11 @@ class Executor:
                 
                 results.append(result)
             
-            return results
+        except Exception:
+            logger.exception("Error executing plan")
+            raise
         
-        except Exception as e:
-            print(f"Error executing plan: {e}", file=sys.stderr)
-            return results
+        return results
 
     def cleanup(self):
         if self.playwright_service:

@@ -1,4 +1,5 @@
 import typer
+import traceback
 from src.core.planner import Planner
 from src.core.executor import Executor
 from src.core.models import Plan
@@ -38,6 +39,8 @@ def chat():
         # Optional: Pre-warm the browser if we want it ready immediately
         # executor.get_playwright_service() 
     except Exception as e:
+        typer.secho(f"Initialization failed: {e}", fg=typer.colors.RED, err=True)
+        typer.echo(traceback.format_exc(), err=True)
         raise typer.Exit(code=1)
 
     typer.echo("Gear is ready!")
