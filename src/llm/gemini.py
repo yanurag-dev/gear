@@ -72,7 +72,7 @@ def get_gemini_multimodal_response(prompt: str, image_path: str, system_instruct
         if system_instruction:
             config = types.GenerateContentConfig(
                 system_instruction=system_instruction,
-                response_mime_type="application/json"
+                response_mime_type="text/plain"
             )
 
         response = client.models.generate_content(
@@ -83,6 +83,9 @@ def get_gemini_multimodal_response(prompt: str, image_path: str, system_instruct
             ],
             config=config
         )
+        if response is None or not hasattr(response, 'text'):
+            _logger.error(f"Gemini API returned an invalid multimodal response. Model: '{model_name}', Image present: {image_data is not None}. Response: {response}")
+            return None
         return response.text
     except Exception as e:
         _logger.exception(f"Multimodal error: {e}")
