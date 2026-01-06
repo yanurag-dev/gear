@@ -6,6 +6,7 @@ import json
 
 class Planner:
     def generate_plan(self, goal: str, context: Optional[dict] = None) -> Plan | str:
+
         # Pass the context (like current URL) to the adapter
         llm_output = generate_response(goal, context=context)
 
