@@ -1,11 +1,12 @@
 import yaml
 import os
+from typing import Optional, Any, Dict
 from dotenv import load_dotenv
 import logging
 
 _logger = logging.getLogger(__name__)
 
-def _substitute_env_vars(obj):
+def _substitute_env_vars(obj: Any) -> Any:
     """Recursively substitute environment variables in configuration values."""
     if isinstance(obj, dict):
         return {key: _substitute_env_vars(value) for key, value in obj.items()}
@@ -16,7 +17,7 @@ def _substitute_env_vars(obj):
     else:
         return obj
 
-def load_config(config_path: str = None):
+def load_config(config_path: Optional[str] = None) -> Dict[str, Any]:
     if config_path is None:
         # Resolve path relative to this loader.py file
         base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -48,6 +49,8 @@ def load_config(config_path: str = None):
         raise ValueError(f"Error parsing YAML config file at {config_path}") from e
     
     # Substitute environment variables in the config
-    config = _substitute_env_vars(config)
+    substituted_config = _substitute_env_vars(config)
     
-    return config
+    # Type assertion for mypy
+    assert isinstance(substituted_config, dict)
+    return substituted_config

@@ -25,6 +25,11 @@ This document outlines the context, rules, and standards for the AI agent workin
 *   Always use absolute imports from the `src` root (e.g., `from src.core.models import Plan`).
 *   Avoid circular imports by keeping data models (`src/core/models.py`) independent.
 
+### Type Hinting
+*   **Embrace Static Typing**: All new Python code should use type hints (`from typing import ...`) for function arguments, return values, and variables.
+*   **Benefits**: Improves readability, enables better IDE support, and helps catch errors early.
+*   **Tools**: Ensure type checks (e.g., `mypy`) are configured and run in CI/CD pipelines.
+
 ### Error Handling
 *   Use `try/except` blocks for external operations (subprocess, network, file I/O).
 *   In CLI commands, catch exceptions and raise `typer.Exit(code=1)` with details.
@@ -44,6 +49,7 @@ This document outlines the context, rules, and standards for the AI agent workin
 *   **Conventions**: Adhere to existing project conventions. Analyze surrounding code first.
 *   **Libraries**: Verify library availability before importing.
 *   **Paths**: Always use **absolute paths** for file operations.
+*   **Virtual Environment**: ALWAYS active virtual environment before running commands strings. Use `source venv/bin/activate &&` prefix for shell commands.
 
 ### Interaction Style
 *   **Concise & Direct**: Keep text output brief. Focus on the code.

@@ -1,5 +1,5 @@
 from playwright.sync_api import sync_playwright, Page, Browser, BrowserContext
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from urllib.parse import urlparse
 
 class PlaywrightService:
@@ -8,6 +8,12 @@ class PlaywrightService:
         self.browser: Optional[Browser] = None
         self.context: Optional[BrowserContext] = None
         self.page: Optional[Page] = None
+
+    def _get_page(self) -> Page:
+        """Helper to safely get the page, raising RuntimeError if not initialized."""
+        if not self.page:
+            raise RuntimeError("Browser not initialized. Call start() first.")
+        return self.page
 
     def is_active(self) -> bool:
         """Checks if the browser session is still active and the page is not closed."""
@@ -82,20 +88,19 @@ class PlaywrightService:
         if not self.is_active():
             self.start()
         
+        page = self._get_page()
         try:
-            self.page.bring_to_front()
+            page.bring_to_front()
         except Exception:
             # If bring_to_front fails even after is_active, force a restart
             print("Page interaction failed, attempting recovery...")
             self.start()
-            if self.page is not None:
-                try:
-                    self.page.bring_to_front()
-                except Exception as e:
-                    print(f"Recovery failed: Could not bring page to front: {e}")
-                    raise
-            else:
-                raise RuntimeError("Recovery failed: Browser page not initialized after start()")
+            page = self._get_page()
+            try:
+                page.bring_to_front()
+            except Exception as e:
+                print(f"Recovery failed: Could not bring page to front: {e}")
+                raise
         
         # Ensure the URL has a protocol
         parsed = urlparse(url)
@@ -115,15 +120,16 @@ class PlaywrightService:
             url = f"{scheme}://{url}"
             
         print(f"Navigating to {url}...")
-        self.page.goto(url)
+        page.goto(url)
 
     def type(self, selector: str, text: str, timeout: int = 5000):
         if not self.is_active():
             self.start()
+        page = self._get_page()
         print(f"Typing '{text}' into '{selector}'...")
         try:
-            self.page.wait_for_selector(selector, timeout=timeout)
-            self.page.fill(selector, text)
+            page.wait_for_selector(selector, timeout=timeout)
+            page.fill(selector, text)
         except Exception as e:
             print(f"Warning: Could not type into {selector}: {e}")
             raise
@@ -132,17 +138,18 @@ class PlaywrightService:
         if not self.is_active():
             self.start()
         
-        initial_url = self.page.url
+        page = self._get_page()
+        initial_url = page.url
         print(f"Clicking '{selector}'...")
         try:
             # Wait for element to be visible and stable
-            self.page.wait_for_selector(selector, state="visible", timeout=timeout)
-            self.page.click(selector, timeout=timeout)
+            page.wait_for_selector(selector, state="visible", timeout=timeout)
+            page.click(selector, timeout=timeout)
             return True
         except Exception as e:
             # Check if page navigated away (which might be why it failed)
             try:
-                current_url = self.page.url
+                current_url = page.url
             except Exception:
                 # If we can't even get the URL, the page might have closed or crashed
                 print(f"Error: Click on '{selector}' failed and page is inaccessible: {e}")
@@ -170,7 +177,7 @@ class PlaywrightService:
             raise RuntimeError("Browser not started.")
         self.page.screenshot(path=path)
 
-    def get_form_fields(self) -> list:
+    def get_form_fields(self) -> List[Any]:
         if not self.page:
             raise RuntimeError("Browser not started.")
         
@@ -430,4 +437,6 @@ class PlaywrightService:
         """)
         
         print(f"Extracted {len(fields)} form fields (including Shadow DOM)")
+        # Type assertion for mypy
+        assert isinstance(fields, list)
         return fields

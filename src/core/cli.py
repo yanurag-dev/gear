@@ -125,7 +125,8 @@ def analyze(
         pw = executor.get_playwright_service()
         pw.navigate(url)
         # Wait for network activity to settle
-        pw.page.wait_for_load_state("networkidle")
+        if pw.page:
+            pw.page.wait_for_load_state("networkidle")
         if wait_seconds > 0:
             import time
             time.sleep(wait_seconds)
@@ -194,7 +195,8 @@ def resolve(
         pw = executor.get_playwright_service()
         pw.navigate(url)
         # Wait for network activity to settle
-        pw.page.wait_for_load_state("networkidle")
+        if pw.page:
+            pw.page.wait_for_load_state("networkidle")
         if wait_seconds > 0:
             import time
             time.sleep(wait_seconds)

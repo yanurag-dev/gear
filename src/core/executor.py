@@ -1,5 +1,6 @@
 from src.core.models import Plan, Action
 from src.mcp.playwright_mcp.services import PlaywrightService
+from typing import Optional
 import sys
 import logging
 
@@ -7,10 +8,10 @@ logger = logging.getLogger(__name__)
 
 class Executor:
     def __init__(self, interactive: bool = True):
-        self.playwright_service = None
+        self.playwright_service: Optional[PlaywrightService] = None
         self.interactive = interactive
 
-    def get_playwright_service(self):
+    def get_playwright_service(self) -> PlaywrightService:
         if not self.playwright_service:
             self.playwright_service = PlaywrightService()
         
@@ -51,16 +52,21 @@ class Executor:
                 elif step.mcp == "ai":
                     if step.action == "ocr":
                         from src.llm.gemini import get_gemini_multimodal_response
-                        result = get_gemini_multimodal_response(
-                            prompt=step.args.get("prompt", "Extract all details from this document as JSON."),
-                            image_path=step.args.get("path"),
-                            system_instruction="Return structured JSON only."
-                        )
-                        if result is not None:
-                            print(f"    (OCR complete: {len(result)} bytes)")
-                        else:
-                            print(f"    (OCR failed: No response received from AI service)")
+                        file_path = step.args.get("path")
+                        if not file_path:
+                            print(f"    (OCR failed: No file path provided)")
                             result = ""
+                        else:
+                            result = get_gemini_multimodal_response(
+                                prompt=step.args.get("prompt", "Extract all details from this document as JSON."),
+                                file_path=file_path,
+                                system_instruction="Return structured JSON only."
+                            )
+                            if result is not None:
+                                print(f"    (OCR complete: {len(result)} bytes)")
+                            else:
+                                print(f"    (OCR failed: No response received from AI service)")
+                                result = ""
 
                 elif step.mcp == "filesystem":
                     print(f"    (Simulating Filesystem action: {step.action} {step.args})")
