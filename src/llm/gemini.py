@@ -24,6 +24,11 @@ def get_gemini_response(prompt: str, system_instruction: Optional[str] = None, r
     if client is None:
         _logger.error("Gemini client not initialized. Call initialize_gemini first.")
         return None
+    
+    if model_name is None:
+        _logger.error("Model name not set. Call initialize_gemini with a valid model name.")
+        return None
+    
     try:
         config = None
         if system_instruction:
@@ -57,6 +62,11 @@ def get_gemini_multimodal_response(prompt: str, file_path: str, system_instructi
     if client is None:
         _logger.error("Gemini client not initialized.")
         return None
+    
+    if model_name is None:
+        _logger.error("Model name not set. Call initialize_gemini with a valid model name.")
+        return None
+    
     try:
         from google.genai import types
         import pathlib
@@ -71,6 +81,10 @@ def get_gemini_multimodal_response(prompt: str, file_path: str, system_instructi
 
         if not is_supported:
             _logger.error(f"Invalid or unsupported file type for: {file_path} (MIME: {mime_type})")
+            return None
+        
+        if mime_type is None:
+            _logger.error(f"Could not determine MIME type for file: {file_path}")
             return None
         
         config = None

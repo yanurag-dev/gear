@@ -1,6 +1,6 @@
 import json
 import logging
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from src.llm.gemini import get_gemini_response
 
 _logger = logging.getLogger(__name__)
@@ -40,12 +40,14 @@ class ContextResolver:
             for key in target_schema:
                 if key not in resolved_data:
                     resolved_data[key] = None
+            # Type assertion for mypy
+            assert isinstance(resolved_data, dict)
             return resolved_data
         except json.JSONDecodeError as e:
             _logger.error(f"Failed to parse JSON response from Gemini: {e}. Response: {response}")
             return {field: None for field in target_schema}
 
-    def identify_gaps(self, resolved_data: Dict[str, Any]) -> list[str]:
+    def identify_gaps(self, resolved_data: Dict[str, Any]) -> List[str]:
         """
         Identifies fields that are null or missing in the resolved data.
         """

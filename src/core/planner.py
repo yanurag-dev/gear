@@ -1,11 +1,11 @@
 from src.core.models import Plan
 from pydantic import ValidationError
 from src.llm.adapter import generate_response
-from typing import Optional
+from typing import Optional, Union
 import json
 
 class Planner:
-    def generate_plan(self, goal: str, context: Optional[dict] = None) -> Plan | str:
+    def generate_plan(self, goal: str, context: Optional[dict] = None) -> Union[Plan, str]:
 
         # Pass the context (like current URL) to the adapter
         llm_output = generate_response(goal, context=context)
