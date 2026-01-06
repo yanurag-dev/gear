@@ -9,14 +9,46 @@ class PlaywrightService:
         self.context: Optional[BrowserContext] = None
         self.page: Optional[Page] = None
 
+    def is_active(self) -> bool:
+        """Checks if the browser session is still active and the page is not closed."""
+        try:
+            if not self.playwright or not self.browser or not self.context or not self.page:
+                return False
+            
+            # Check responsiveness by accessing a property
+            _ = self.page.url
+            
+            return self.browser.is_connected() and not self.page.is_closed()
+        except Exception:
+            return False
+
     def start(self, headless: bool = False):
+        if self.is_active():
+            return
+
+        print("Initializing/Recovering browser session...")
         if not self.playwright:
             self.playwright = sync_playwright().start()
-        if not self.browser:
+        
+        if not self.browser or not self.browser.is_connected():
             self.browser = self.playwright.chromium.launch(headless=headless)
             self.context = self.browser.new_context()
             self.page = self.context.new_page()
             print("Browser started.")
+        else:
+            # Browser is connected, but page/context might be dead
+            try:
+                self.context = self.browser.new_context()
+                self.page = self.context.new_page()
+                print("New page context created.")
+            except Exception:
+                # Total failure, restart browser
+                try: self.browser.close()
+                except: pass
+                self.browser = self.playwright.chromium.launch(headless=headless)
+                self.context = self.browser.new_context()
+                self.page = self.context.new_page()
+                print("Browser restarted after recovery failure.")
 
     def stop(self):
         try:
@@ -47,8 +79,23 @@ class PlaywrightService:
         print("Browser stopped.")
 
     def navigate(self, url: str):
-        if not self.page:
+        if not self.is_active():
             self.start()
+        
+        try:
+            self.page.bring_to_front()
+        except Exception:
+            # If bring_to_front fails even after is_active, force a restart
+            print("Page interaction failed, attempting recovery...")
+            self.start()
+            if self.page is not None:
+                try:
+                    self.page.bring_to_front()
+                except Exception as e:
+                    print(f"Recovery failed: Could not bring page to front: {e}")
+                    raise
+            else:
+                raise RuntimeError("Recovery failed: Browser page not initialized after start()")
         
         # Ensure the URL has a protocol
         parsed = urlparse(url)
@@ -70,17 +117,43 @@ class PlaywrightService:
         print(f"Navigating to {url}...")
         self.page.goto(url)
 
-    def type(self, selector: str, text: str):
-        if not self.page:
-            raise RuntimeError("Browser not started. Call navigate first.")
+    def type(self, selector: str, text: str, timeout: int = 5000):
+        if not self.is_active():
+            self.start()
         print(f"Typing '{text}' into '{selector}'...")
-        self.page.fill(selector, text)
+        try:
+            self.page.wait_for_selector(selector, timeout=timeout)
+            self.page.fill(selector, text)
+        except Exception as e:
+            print(f"Warning: Could not type into {selector}: {e}")
+            raise
 
-    def click(self, selector: str):
-        if not self.page:
-            raise RuntimeError("Browser not started. Call navigate first.")
+    def click(self, selector: str, timeout: int = 5000):
+        if not self.is_active():
+            self.start()
+        
+        initial_url = self.page.url
         print(f"Clicking '{selector}'...")
-        self.page.click(selector)
+        try:
+            # Wait for element to be visible and stable
+            self.page.wait_for_selector(selector, state="visible", timeout=timeout)
+            self.page.click(selector, timeout=timeout)
+            return True
+        except Exception as e:
+            # Check if page navigated away (which might be why it failed)
+            try:
+                current_url = self.page.url
+            except Exception:
+                # If we can't even get the URL, the page might have closed or crashed
+                print(f"Error: Click on '{selector}' failed and page is inaccessible: {e}")
+                raise
+
+            if current_url != initial_url:
+                print(f"Click on '{selector}' performed, and URL changed from {initial_url} to {current_url}. Treating as success.")
+                return True
+            
+            print(f"Error: Click on '{selector}' failed (URL unchanged): {e}")
+            raise
 
     def scrape(self, url: Optional[str] = None) -> str:
         if url and self.page and self.page.url != url:

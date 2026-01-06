@@ -48,15 +48,21 @@ def chat():
 
     try:
         while True:
-            goal = typer.prompt("Enter your goal (or 'exit'/'quit' to end)")
+            goal = typer.prompt("Enter your goal ('stop' to take over, 'exit' to quit)")
             if goal.lower() in ["exit", "quit"]:
                 typer.echo("Ending chat session. Goodbye!")
                 break
+            
+            if goal.lower() == "stop":
+                typer.echo("Agent paused. You can now interact with the browser manually.")
+                typer.echo("Type another goal when you want the agent to resume.")
+                continue
 
             typer.echo(f"Received goal: {goal}")
 
             try:
-                response = planner.generate_plan(goal)
+                context = executor.get_current_state()
+                response = planner.generate_plan(goal, context=context)
 
                 if isinstance(response, Plan):
                     typer.echo("\nGenerated Plan:")

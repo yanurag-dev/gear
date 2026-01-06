@@ -6,14 +6,19 @@ import logging
 logger = logging.getLogger(__name__)
 
 class Executor:
-    def __init__(self):
+    def __init__(self, interactive: bool = True):
         self.playwright_service = None
+        self.interactive = interactive
 
     def get_playwright_service(self):
         if not self.playwright_service:
             self.playwright_service = PlaywrightService()
-            # Start headless=False so user can see what's happening
-            self.playwright_service.start(headless=False) 
+        
+        if not self.playwright_service.is_active():
+            # If the service exists but is not active (e.g. browser closed by user),
+            # trigger start to recover.
+            self.playwright_service.start(headless=not self.interactive)
+            
         return self.playwright_service
 
     def execute_plan(self, plan: Plan):
@@ -73,6 +78,15 @@ class Executor:
             raise
         
         return results
+
+    def get_current_state(self) -> dict:
+        """Returns the current state of the executor (e.g. current URL)."""
+        state = {"url": None}
+        if self.playwright_service and self.playwright_service.is_active():
+            page = self.playwright_service.page
+            if page is not None:
+                state["url"] = getattr(page, "url", None)
+        return state
 
     def cleanup(self):
         if self.playwright_service:
