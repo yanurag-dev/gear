@@ -6,6 +6,8 @@ from src.core.models import Plan
 import json
 import dataclasses
 import logging
+from langchain_community.chat_message_histories import ChatMessageHistory
+from langchain_core.messages import HumanMessage, AIMessage
 
 # Configure logging to show warnings and errors
 logging.basicConfig(level=logging.WARNING, format='%(levelname)s: %(message)s')
@@ -46,19 +48,22 @@ def chat():
     typer.echo("Gear is ready!")
     typer.echo("Starting interactive chat. Type 'exit' or 'quit' to end.")
 
+    history = ChatMessageHistory()
+
     try:
         while True:
             goal = typer.prompt("Enter your goal ('stop' to take over, 'exit' to quit)")
             if goal.lower() in ["exit", "quit"]:
                 typer.echo("Ending chat session. Goodbye!")
                 break
-            
+
             if goal.lower() == "stop":
                 typer.echo("Agent paused. You can now interact with the browser manually.")
                 typer.echo("Type another goal when you want the agent to resume.")
                 continue
 
             typer.echo(f"Received goal: {goal}")
+            history.add_message(HumanMessage(content=goal))
 
             try:
                 context = executor.get_current_state()
@@ -91,10 +96,13 @@ def chat():
                             else:
                                 typer.echo(str(result))
                     
+                    plan_summary = response.goal
                     typer.echo("\nPlan execution complete.")
+                    history.add_message(AIMessage(content=f"Executed plan: {plan_summary}"))
                 elif isinstance(response, str):
                     typer.echo("\nDirect LLM Response:")
                     typer.echo(response)
+                    history.add_message(AIMessage(content=response))
                 elif response is None:
                     typer.echo("No response received from planner — please try again later; session remains active", err=True)
                 else:
