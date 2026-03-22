@@ -1,45 +1,15 @@
-from src.core.models import Plan, Action
-from typing import Optional, Union
+from typing import Optional
 from src.config.loader import load_config
-from src.llm.gemini import initialize_gemini, get_gemini_response
+from langchain_core.language_models.chat_models import BaseChatModel
+from langchain_core.messages import SystemMessage, HumanMessage
 import logging
-import json
 
 _logger = logging.getLogger(__name__)
 
+_llm: Optional[BaseChatModel] = None
 _initialized = False
-_llm_provider_type = None
-_llm_api_key = None
-_llm_model = None # To store the model name if needed
 
-def _ensure_initialized():
-    global _initialized, _llm_provider_type, _llm_api_key, _llm_model
-    if _initialized:
-        return
-
-    try:
-        config = load_config()
-        if config is None:
-            raise ValueError("Failed to load configuration: config is None")
-        _llm_provider_type = config.get('llm', {}).get('provider')
-        _llm_api_key = config.get('llm', {}).get('api_key')
-        _llm_model = config.get('llm', {}).get('model') # Get model name from config
-
-        if _llm_provider_type == 'google':
-            if not _llm_api_key:
-                _logger.warning("Google GenAI (Gemini) configured but LLM_API_KEY (or api_key in config) is missing. Falling back to mock responses.")
-                _llm_provider_type = None  # Fall back to mock behavior
-            else:
-                # The 'google' provider uses Gemini under the hood
-                initialize_gemini(_llm_api_key, _llm_model) # Initialize Gemini with the API key and model
-        # Add other LLM providers here if needed
-
-        _initialized = True
-    except Exception as e:
-        _logger.exception(f"Failed to initialize LLM provider: {e}")
-        raise # Re-raise the exception after logging
-
-SYSTEM_PROMPT = """You are an AI task-runner agent called 'Gear'. 
+SYSTEM_PROMPT = """You are an AI task-runner agent called 'Gear'.
 Your goal is to help users automate tasks by generating structured execution plans or providing direct answers.
 
 ### AVAILABLE TOOLS (MCPs)
@@ -64,7 +34,6 @@ Gear is an autonomous form-filling agent. The workflow is:
 3. **Submission**: Click the submit button after filling.
 
 ### OUTPUT FORMAT
-... (rest of the format)
 If the task requires multiple steps or external tools, respond with a JSON object following this structure:
 {
     "goal": "the original user goal",
@@ -81,74 +50,60 @@ If the task can be answered directly without tools (e.g., 'what is the capital o
 Always prefer direct text answers for simple knowledge questions.
 """
 
-def generate_response(goal: str, context: Optional[dict] = None) -> Union[Plan, str, None]:
-    _ensure_initialized()
-    
-    # Enrich the goal with current browser context if available
+
+def get_llm() -> BaseChatModel:
+    """Returns the initialized LangChain LLM. Initializes on first call."""
+    global _llm, _initialized
+    if _initialized and _llm is not None:
+        return _llm
+
+    config = load_config()
+    provider = config.get('llm', {}).get('provider', 'google')
+    api_key = config.get('llm', {}).get('api_key')
+    model = config.get('llm', {}).get('model')
+
+    if provider == 'google':
+        from langchain_google_genai import ChatGoogleGenerativeAI
+        _llm = ChatGoogleGenerativeAI(
+            model=model or 'gemini-1.5-flash',
+            google_api_key=api_key,
+        )
+    elif provider == 'openai':
+        from langchain_openai import ChatOpenAI
+        _llm = ChatOpenAI(
+            model=model or 'gpt-4o-mini',
+            api_key=api_key,
+        )
+    elif provider == 'anthropic':
+        from langchain_anthropic import ChatAnthropic
+        _llm = ChatAnthropic(
+            model=model or 'claude-sonnet-4-6',
+            api_key=api_key,
+        )
+    else:
+        raise ValueError(f"Unsupported LLM provider: {provider}")
+
+    _initialized = True
+    return _llm
+
+
+def _ensure_initialized() -> None:
+    get_llm()
+
+
+def generate_response(goal: str, context: Optional[dict] = None) -> str:
+    """Send a goal to the LLM and return the raw text response."""
+    llm = get_llm()
+
     enriched_goal = goal
     url = context.get("url") if context else None
     if isinstance(url, str) and url.strip():
         enriched_goal = f"Current Browser URL: {url}\nUser Goal: {goal}"
 
-    if _llm_provider_type == 'google':
-        # For Gemini, we'll send the raw goal and expect a text response or JSON plan.
-        response = get_gemini_response(
-            enriched_goal, 
-            system_instruction=SYSTEM_PROMPT,
-            response_mime_type="application/json"
-        )
-        
-        if not response:
-            return None
-            
-        # Try to parse response as a JSON Plan
-        if isinstance(response, str):
-            try:
-                # Clean up potential markdown formatting
-                cleaned_response = response.strip()
-                if cleaned_response.startswith("```json"):
-                    cleaned_response = cleaned_response.split("```json")[1].split("```")[0].strip()
-                elif cleaned_response.startswith("```"):
-                    cleaned_response = cleaned_response.split("```")[1].split("```")[0].strip()
-                
-                # Try to load as Plan
-                return Plan.model_validate_json(cleaned_response)
-            except Exception:
-                _logger.debug("Failed to parse response as Plan, returning as raw string.")
-        
-        return response
-    else: # Default to mock behavior
-        if "open google" in enriched_goal.lower():
-            return Plan(
-                goal=enriched_goal,
-                steps=[
-                    Action(
-                        mcp="playwright",
-                        action="navigate",
-                        args={
-                            "url": "https://www.google.com"
-                        }
-                    )
-                ]
-            )
-        elif "search for" in enriched_goal.lower():
-            query = enriched_goal.lower().split("search for", 1)[1].strip()
-            return Plan(
-                goal=enriched_goal,
-                steps=[
-                    Action(
-                        mcp="playwright",
-                        action="navigate",
-                        args={
-                            "url": f"https://www.google.com/search?q={query}"
-                        }
-                    )
-                ]
-            )
-        elif "what is" in enriched_goal.lower() or "calculate" in enriched_goal.lower():
-            # Simulate a direct answer for knowledge-based queries
-            if "2 + 2" in enriched_goal.lower():
-                return "4"
-            else:
-                return "I don't know the answer to that directly yet."
-        return None
+    messages = [
+        SystemMessage(content=SYSTEM_PROMPT),
+        HumanMessage(content=enriched_goal),
+    ]
+
+    response = llm.invoke(messages)
+    return str(response.content)
